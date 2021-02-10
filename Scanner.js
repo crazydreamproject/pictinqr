@@ -3,7 +3,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Image, StyleSheet } from 'react-native';
-import { Container, Header, View, Button, Icon, Fab, Text, Toast } from 'native-base';
+import { Container, Content, Header, View, Button, Icon, Fab, Card, CardItem, Title, Body, Text, Toast, Spinner } from 'native-base';
 import * as Device from 'expo-device';
 import { BarCodeScanner } from 'expo-barcode-scanner';
 import { DeviceMotion } from 'expo-sensors';
@@ -29,13 +29,13 @@ let initialMotion = {
 const initialQrData = {
     x: 0,
     y: 0,
-    width: 128,
-    height: 128,
-    data: "http://picsum.phtos/128/128",
+    width: 0,
+    height: 0,
+    data: "null data",
 };
 
 const QrDataType = {
-    none: "null",
+    none: "null data",
     image: "Image URL",
     url: "Web URL but not image",
     data: "RAW data"
@@ -48,24 +48,13 @@ export const ScannerView = (props) => {
     const [motion, setMotion] = useState(initialMotion);
     const [qrdata, setQrData] = useState(initialQrData);
     const [datatype, setDataType] = useState(QrDataType.none);
-    const [isWebUrl, setIsWebUrl] = useState(false);
-    console.log(typeof qrdata);
+    const [changed, setChanged] = useState(false);
     const imageStyle = {
         position: 'absolute',
-        
         left: qrdata.x,
         top: qrdata.y,
         width: qrdata.width,
         height: qrdata.height,
-        
-        /*
-        left: qrdata.x,
-        //left: qrdata ? qrdata.x : 0,
-        top: qrdata ? qrdata.y : 0,
-        width: qrdata ? qrdata.width : 0,
-        height: qrdata ? qrdata.height : 0,
-        */
-
         transform: [
             //            { rotate: `${(motion.rotation.alpha -)}rad` },
             { rotateX: `${(motion.rotation.alpha - initialMotion.rotation.alpha) / 2}rad` },
@@ -73,16 +62,6 @@ export const ScannerView = (props) => {
             { rotateZ: `${(motion.rotation.gamma - initialMotion.rotation.gamma) / 2}rad` },
         ],
     }
-    //console.log(JSON.stringify(motion.rotation));
-
-    const handleCalibrate = () => {
-        if (motion.rotation) {
-            initialMotion.rotation.alpha = motion.rotation.alpha;
-            initialMotion.rotation.beta = motion.rotation.beta;
-            initialMotion.rotation.gamma = motion.rotation.gamma;
-        }
-        setCalibrate(false);
-    };
 
     useEffect(() => {
         (async () => {
@@ -110,11 +89,24 @@ export const ScannerView = (props) => {
         })();
     }, []);
 
+    const handleCalibrate = () => {
+        if (motion.rotation) {
+            initialMotion.rotation.alpha = motion.rotation.alpha;
+            initialMotion.rotation.beta = motion.rotation.beta;
+            initialMotion.rotation.gamma = motion.rotation.gamma;
+        }
+        setCalibrate(false);
+    };
+
     const handleBarCodeScanned = ({ type, data, bounds, cornerPoints }) => {
         setScanned(true);
-        //setIsImage(data.startsWith("http"));
-        //setIsWebUrl(false);
-        setDataType(data.startsWith("http") ? QrDataType.image : QrDataType.data);
+        if (qrdata.data !== data) {
+            setChanged(true);
+            // try out with image first if starts with http
+            setDataType(data.startsWith("http") ? QrDataType.image : QrDataType.data);
+        } else {
+            setChanged(false);
+        }
         setQrData({
             x: bounds.origin.x,
             y: bounds.origin.y,
@@ -122,23 +114,24 @@ export const ScannerView = (props) => {
             height: bounds.size.height,
             data: data,
         });
-        //alert(`Bar code with type ${type} and data ${data} has been scanned!`);
-        //console.log(`Bar code data ${data} has been scanned`);
     };
+
+    if (changed) {
+        Toast.hide();
+    }
 
     const handleImageError = (ev) => {
         Toast.show({
             text: "QR Code: Not Image URL",
         });
-        //setDataType(QrDataType.url);
-        setIsWebUrl(true);
+        // it was not image. treat as url if starts with http
+        setDataType(qrdata.data.startsWith("http") ? QrDataType.url : QrDataType.data);
     };
 
     const handleImageLoad = () => {
         Toast.show({
             text: qrdata.data,
         });
-        setDataType(QrDataType.image);
     }
 
     const handleShowData = () => {
@@ -155,22 +148,22 @@ export const ScannerView = (props) => {
     };
 
     const handleReset = () => {
-        setIsWebUrl(false);
-        setQrData(QrDataType.none);
-        setCalibrate(true);
         setScanned(false);
-        //setQrData(initialQrData);
-        //setMotion(initialMotion);
+        setCalibrate(true);
+        setMotion(initialMotion);
+        setQrData(initialQrData);
+        setDataType(QrDataType.none);
+        setChanged(false);
     };
 
     /**
      * UI related stuffs
      */
     if (hasPermission === null) {
-        return <Text>Requesting for camera permission</Text>;
+        return <RequestCameraPermissionView />;
     }
     if (hasPermission === false) {
-        return <Text>No access to camera</Text>;
+        return <CameraAccessDeniedView />;
     }
 
     if (scanned) {
@@ -194,15 +187,14 @@ export const ScannerView = (props) => {
                     style={StyleSheet.absoluteFillObject}
                     barCodeTypes={[BarCodeScanner.Constants.BarCodeType.qr]}
                 />
-                {(scanned && datatype === QrDataType.image) && 
-                    <Image style={imageStyle} source={{ uri: qrdata.data }} onError={handleImageError} onLoad={handleImageLoad} />
-                }
-                {(scanned && isWebUrl) && <Button primary style={{opacity: 0.8, ...imageStyle}} onPress={handleOpenUrl} >
-                    <Icon style={{ fontSize: imageStyle.width / 2, color: 'black' }} type="Ionicons" name="earth"></Icon>
-                </Button>}
-                {(scanned && datatype === QrDataType.data) && <Button primary style={{opacity: 0.8, ...imageStyle}} onPress={handleShowData} >
+                {(datatype === QrDataType.data) && <Button primary style={{ opacity: 0.8, ...imageStyle }} onPress={handleShowData} >
                     <Icon style={{ fontSize: imageStyle.width / 2, color: 'black' }} type="Ionicons" name="information-circle"></Icon>
                 </Button>}
+                {(datatype === QrDataType.url) && <Button primary style={{ opacity: 0.8, ...imageStyle }} onPress={handleOpenUrl} >
+                    <Icon style={{ fontSize: imageStyle.width / 2, color: 'black' }} type="Ionicons" name="earth"></Icon>
+                </Button>}
+                {(datatype === QrDataType.image) &&
+                    <Image style={imageStyle} source={{ uri: qrdata.data }} onError={handleImageError} onLoad={handleImageLoad} />}
                 <Fab
                     active={true}
                     direction="up"
@@ -213,6 +205,51 @@ export const ScannerView = (props) => {
                     <Icon name="sync" />
                 </Fab>
             </View>
+        </Container>
+    );
+};
+
+const PictQrHeader = (props) => {
+    return (
+        <Header>
+            <Body>
+                <Title>PictQR Scanner</Title>
+            </Body>
+        </Header>
+    );
+};
+
+const RequestCameraPermissionView = (props) => {
+    return (
+        <Container>
+            <PictQrHeader />
+            <Content>
+                <Card>
+                    <CardItem header bordered>
+                        <Text>Requesting for camera permission</Text>
+                    </CardItem>
+                    <CardItem cardBody>
+                        <Body style={{ alignItems: "center" }}>
+                            <Spinner></Spinner>
+                        </Body>
+                    </CardItem>
+                </Card>
+            </Content>
+        </Container>
+    );
+};
+
+const CameraAccessDeniedView = (props) => {
+    return (
+        <Container>
+            <PictQrHeader />
+            <Content>
+                <Card>
+                    <CardItem header bordered>
+                        <Text>No access to camera</Text>
+                    </CardItem>
+                </Card>
+            </Content>
         </Container>
     );
 };
