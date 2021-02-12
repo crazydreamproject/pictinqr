@@ -59,6 +59,8 @@ export const ScannerView = (props) => {
     const [qrdata, setQrData] = useState(initialQrData);
     const [datatype, setDataType] = useState(QrDataType.none);
     const [changed, setChanged] = useState(false);
+    const [favicon, setFavicon] = useState(false);
+    const favUrl = qrdata.data.split('/')[0] + '//' + qrdata.data.split('/')[2] + '/favicon.ico';
 
     useEffect(() => {
         (async () => {
@@ -97,6 +99,7 @@ export const ScannerView = (props) => {
         setScanned(true);
         if (qrdata.data !== data) {
             setChanged(true);
+            setFavicon(false);
             // try out with image first if starts with http
             setDataType(data.startsWith("http") ? QrDataType.image : QrDataType.data);
         } else {
@@ -123,6 +126,7 @@ export const ScannerView = (props) => {
         });
         // it was not image. treat as url if starts with http
         setDataType(qrdata.data.startsWith("http") ? QrDataType.url : QrDataType.data);
+        axios.get(favUrl).then((results) => { setFavicon(true); });
     };
 
     const handleImageLoad = () => {
@@ -153,6 +157,7 @@ export const ScannerView = (props) => {
         setQrData(initialQrData);
         setDataType(QrDataType.none);
         setChanged(false);
+        setFavicon(false);
     };
 
     /**
@@ -185,7 +190,7 @@ export const ScannerView = (props) => {
         top: qrdata.y,
         width: qrdata.width,
         height: qrdata.height,
-        backgroundColor: datatype === QrDataType.image ? 'transparent' : themeColor,
+        backgroundColor: datatype === QrDataType.image ? 'transparent' : (favicon ? 'white' : themeColor),
         transform: [
             { rotate: `${(motion.rotation.alpha - calibMotion.rotation.alpha) / 2}rad` },
             //            { rotateX: `${(motion.rotation.alpha - calibMotion.rotation.alpha) / 2}rad` },
@@ -210,9 +215,13 @@ export const ScannerView = (props) => {
                     <Button primary iconLeft style={{ opacity: 1.0, ...imageStyle }} onPress={handleShowData} >
                         <Icon style={iconStyle} type="Ionicons" name="information-circle"></Icon>
                     </Button>}
-                {(datatype === QrDataType.url) &&
+                {(datatype === QrDataType.url && favicon === false) &&
                     <Button primary iconLeft style={{ opacity: 1.0, ...imageStyle }} onPress={handleOpenUrl} >
                         <Icon style={iconStyle} type="Ionicons" name="earth"></Icon>
+                    </Button>}
+                {(datatype === QrDataType.url && favicon === true) &&
+                    <Button primary iconLeft style={{ opacity: 1.0, ...imageStyle }} onPress={handleOpenUrl} >
+                        <Image style={{ width: qrdata.width / 2, height: qrdata.height / 2, margin: qrdata.width / 4 }} source={{ url: favUrl }} />
                     </Button>}
                 {(datatype === QrDataType.image) &&
                     <Image style={imageStyle} source={{ uri: qrdata.data }} onError={handleImageError} onLoad={handleImageLoad} />}
