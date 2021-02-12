@@ -126,7 +126,11 @@ export const ScannerView = (props) => {
         });
         // it was not image. treat as url if starts with http
         setDataType(qrdata.data.startsWith("http") ? QrDataType.url : QrDataType.data);
-        axios.get(favUrl).then((results) => { setFavicon(true); });
+        if (Device.osName === 'Android') {
+            ; // humm, setting <Image> with favicon.ico source does not show, and is onLoad OK, onError not triggered...
+        } else {
+            axios.get(favUrl).then((results) => { setFavicon(true); }); // ios works fine
+        }
     };
 
     const handleImageLoad = () => {
@@ -203,6 +207,13 @@ export const ScannerView = (props) => {
         color: 'white',
     };
 
+    const urlError = (ev) => {
+        //alert(typeof ev.nativeEvent);
+    };
+    const urlOK = (ev) => {
+        //alert("favUrl OK.");
+    };
+
     return (
         <Container>
             <View style={styles.container}>
@@ -220,9 +231,7 @@ export const ScannerView = (props) => {
                         <Icon style={iconStyle} type="Ionicons" name="earth"></Icon>
                     </Button>}
                 {(datatype === QrDataType.url && favicon === true) &&
-                    <Button primary iconLeft style={{ opacity: 1.0, ...imageStyle }} onPress={handleOpenUrl} >
-                        <Image style={{ width: qrdata.width / 2, height: qrdata.height / 2, margin: qrdata.width / 4 }} source={{ url: favUrl }} />
-                    </Button>}
+                        <Image style={{ width: qrdata.width / 2, height: qrdata.height / 2 }} source={{ url: favUrl }} onError={urlError} onLoad={urlOK} />}
                 {(datatype === QrDataType.image) &&
                     <Image style={imageStyle} source={{ uri: qrdata.data }} onError={handleImageError} onLoad={handleImageLoad} />}
                 <Fab
