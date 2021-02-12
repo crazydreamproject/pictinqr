@@ -8,6 +8,7 @@ import * as Device from 'expo-device';
 import { BarCodeScanner } from 'expo-barcode-scanner';
 import { DeviceMotion } from 'expo-sensors';
 import * as WebBrowser from 'expo-web-browser';
+import Clipboard from 'expo-clipboard';
 import axios from 'axios';
 
 const styles = StyleSheet.create({
@@ -19,8 +20,13 @@ const styles = StyleSheet.create({
     },
 });
 
-/* will be updated on calibration */
-let initialMotion = {
+const initialMotion = {
+    rotation: {
+        alpha: 0, beta: 0, gamma: 0
+    }
+};
+
+let calibMotion = {
     rotation: {
         alpha: 0, beta: 0, gamma: 0
     }
@@ -34,12 +40,16 @@ const initialQrData = {
     data: "null data",
 };
 
+const stillImage = 'http://picsum.photos/200';
+
 const QrDataType = {
     none: "null data",
     image: "Image URL",
     url: "Web URL but not image",
     data: "RAW data"
 };
+
+const themeColor = '#5067FF';
 
 export const ScannerView = (props) => {
     const [hasPermission, setHasPermission] = useState(null);
@@ -49,19 +59,6 @@ export const ScannerView = (props) => {
     const [qrdata, setQrData] = useState(initialQrData);
     const [datatype, setDataType] = useState(QrDataType.none);
     const [changed, setChanged] = useState(false);
-    const imageStyle = {
-        position: 'absolute',
-        left: qrdata.x,
-        top: qrdata.y,
-        width: qrdata.width,
-        height: qrdata.height,
-        transform: [
-            //            { rotate: `${(motion.rotation.alpha -)}rad` },
-            { rotateX: `${(motion.rotation.alpha - initialMotion.rotation.alpha) / 2}rad` },
-            { rotateY: `${(motion.rotation.beta - initialMotion.rotation.beta) / 2}rad` },
-            { rotateZ: `${(motion.rotation.gamma - initialMotion.rotation.gamma) / 2}rad` },
-        ],
-    }
 
     useEffect(() => {
         (async () => {
@@ -71,7 +68,6 @@ export const ScannerView = (props) => {
         (async () => {
             const isAvailable = await DeviceMotion.isAvailableAsync();
             if (isAvailable) {
-                /*
                 DeviceMotion.addListener((motionData) => {
                     // humm. using both motion and camera(barcodescanner) in android drops qrscan speed hopelessly...
                     if (Device.osName === 'Android') {
@@ -82,7 +78,6 @@ export const ScannerView = (props) => {
                         handleCalibrate();
                     }
                 });
-                */
             } else {
                 //console.log("DeviceMotion not available...");
             }
@@ -91,9 +86,9 @@ export const ScannerView = (props) => {
 
     const handleCalibrate = () => {
         if (motion.rotation) {
-            initialMotion.rotation.alpha = motion.rotation.alpha;
-            initialMotion.rotation.beta = motion.rotation.beta;
-            initialMotion.rotation.gamma = motion.rotation.gamma;
+            calibMotion.rotation.alpha = motion.rotation.alpha;
+            calibMotion.rotation.beta = motion.rotation.beta;
+            calibMotion.rotation.gamma = motion.rotation.gamma;
         }
         setCalibrate(false);
     };
@@ -117,12 +112,14 @@ export const ScannerView = (props) => {
     };
 
     if (changed) {
-        Toast.hide();
+        Toast.show({
+            text: qrdata.data,
+        });
     }
 
     const handleImageError = (ev) => {
         Toast.show({
-            text: "QR Code: Not Image URL",
+            text: qrdata.data,
         });
         // it was not image. treat as url if starts with http
         setDataType(qrdata.data.startsWith("http") ? QrDataType.url : QrDataType.data);
@@ -135,8 +132,10 @@ export const ScannerView = (props) => {
     }
 
     const handleShowData = () => {
+        // copy data to clipboard
+        Clipboard.setString(qrdata.data);
         Toast.show({
-            text: qrdata.data,
+            text: `Copied ${qrdata.data}`,
         });
     };
 
@@ -179,6 +178,26 @@ export const ScannerView = (props) => {
             duration: 9999,
         });
     }
+
+    const imageStyle = {
+        position: 'absolute',
+        left: qrdata.x,
+        top: qrdata.y,
+        width: qrdata.width,
+        height: qrdata.height,
+        backgroundColor: datatype === QrDataType.image ? 'transparent' : themeColor,
+        transform: [
+            { rotate: `${(motion.rotation.alpha - calibMotion.rotation.alpha) / 2}rad` },
+            //            { rotateX: `${(motion.rotation.alpha - calibMotion.rotation.alpha) / 2}rad` },
+            //            { rotateY: `${(motion.rotation.beta - calibMotion.rotation.beta) / 2}rad` },
+            //            { rotateZ: `${(motion.rotation.gamma - calibMotion.rotation.gamma) / 2}rad` },
+        ],
+    };
+    const iconStyle = {
+        fontSize: qrdata.width / 2,
+        color: 'white',
+    };
+
     return (
         <Container>
             <View style={styles.container}>
@@ -187,19 +206,21 @@ export const ScannerView = (props) => {
                     style={StyleSheet.absoluteFillObject}
                     barCodeTypes={[BarCodeScanner.Constants.BarCodeType.qr]}
                 />
-                {(datatype === QrDataType.data) && <Button primary style={{ opacity: 0.8, ...imageStyle }} onPress={handleShowData} >
-                    <Icon style={{ fontSize: imageStyle.width / 2, color: 'black' }} type="Ionicons" name="information-circle"></Icon>
-                </Button>}
-                {(datatype === QrDataType.url) && <Button primary style={{ opacity: 0.8, ...imageStyle }} onPress={handleOpenUrl} >
-                    <Icon style={{ fontSize: imageStyle.width / 2, color: 'black' }} type="Ionicons" name="earth"></Icon>
-                </Button>}
+                {(datatype === QrDataType.data) &&
+                    <Button primary iconLeft style={{ opacity: 1.0, ...imageStyle }} onPress={handleShowData} >
+                        <Icon style={iconStyle} type="Ionicons" name="information-circle"></Icon>
+                    </Button>}
+                {(datatype === QrDataType.url) &&
+                    <Button primary iconLeft style={{ opacity: 1.0, ...imageStyle }} onPress={handleOpenUrl} >
+                        <Icon style={iconStyle} type="Ionicons" name="earth"></Icon>
+                    </Button>}
                 {(datatype === QrDataType.image) &&
                     <Image style={imageStyle} source={{ uri: qrdata.data }} onError={handleImageError} onLoad={handleImageLoad} />}
                 <Fab
                     active={true}
                     direction="up"
                     containerStyle={{}}
-                    style={{ backgroundColor: '#5067FF' }}
+                    style={{ backgroundColor: themeColor }}
                     position="bottomRight"
                     onPress={handleReset}>
                     <Icon name="sync" />
