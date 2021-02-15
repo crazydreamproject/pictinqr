@@ -1,4 +1,4 @@
-# PictInQR
+# PictOnQR
 
 In-place picture overlay on QR inside camera view.
 
@@ -6,7 +6,7 @@ In-place picture overlay on QR inside camera view.
 
 clone project, for example
 
-`git clone https://github.com/crazydreamproject/pictinqr.git`
+`git clone https://github.com/crazydreamproject/pictonqr.git`
 
 or use git app.
 
@@ -15,7 +15,7 @@ https://nodejs.org/
 
 open node.js command prompt and go to project directory, for example:
 
-`cd Document/github/pictinqr`
+`cd Document/github/pictonqr`
 
 install expo
 

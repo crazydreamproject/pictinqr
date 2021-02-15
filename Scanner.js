@@ -248,11 +248,11 @@ export const ScannerView = (props) => {
     );
 };
 
-const PictInQrHeader = (props) => {
+const PictOnQrHeader = (props) => {
     return (
         <Header>
             <Body>
-                <Title>PictInQR Scanner</Title>
+                <Title>PictOnQR Scanner</Title>
             </Body>
         </Header>
     );
@@ -261,7 +261,7 @@ const PictInQrHeader = (props) => {
 const RequestCameraPermissionView = (props) => {
     return (
         <Container>
-            <PictInQrHeader />
+            <PictOnQrHeader />
             <Content>
                 <Card>
                     <CardItem header bordered>
@@ -281,7 +281,7 @@ const RequestCameraPermissionView = (props) => {
 const CameraAccessDeniedView = (props) => {
     return (
         <Container>
-            <PictInQrHeader />
+            <PictOnQrHeader />
             <Content>
                 <Card>
                     <CardItem header bordered>

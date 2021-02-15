@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "pictinqr",
-    "slug": "pictinqr",
+    "name": "pictonqr",
+    "slug": "pictonqr",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -18,14 +18,14 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.cdp.pictinqr"
+      "bundleIdentifier": "com.cdp.pictonqr"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
-      "package": "com.cdp.pictinqr"
+      "package": "com.cdp.pictonqr"
     },
     "web": {
       "favicon": "./assets/favicon.png"
