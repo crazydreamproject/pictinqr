@@ -42,6 +42,8 @@ const initialQrData = {
 
 const stillImage = 'http://picsum.photos/200';
 
+const homePageUrl = "https://nextjs.crazydreamproject.vercel.app/pictonqr";
+
 const QrDataType = {
     none: "null data",
     image: "Image URL",
@@ -154,6 +156,10 @@ export const ScannerView = (props) => {
         WebBrowser.openBrowserAsync(qrdata.data);
     };
 
+    const handleOpenHomePage = () => {
+        WebBrowser.openBrowserAsync(homePageUrl);
+    }
+
     const handleReset = () => {
         setScanned(false);
         setCalibrate(true);
@@ -242,6 +248,9 @@ export const ScannerView = (props) => {
                     position="bottomRight"
                     onPress={handleReset}>
                     <Icon name="sync" />
+                    <Button style={{backgroundColor: themeColor}} onPress={handleOpenHomePage}>
+                        <Icon name="question" />
+                    </Button>
                 </Fab>
             </View>
         </Container>
