@@ -25,6 +25,9 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
+      "permissions": [
+        "CAMERA"
+      ],
       "package": "com.cdp.pictonqr"
     },
     "web": {
