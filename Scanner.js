@@ -257,13 +257,13 @@ export const ScannerView = (props) => {
                 {(datatype === QrDataType.url && favicon === true) &&
                     <>
                         <Image style={{ width: qrdata.width / 2, height: qrdata.height / 2, ...imageStyle }} source={{ url: favUrl }} onError={urlError} onLoad={urlOK} />
-                        <Button style={{opacity: 0.1, ...imageStyle}} onPress={handleOpenUrl} />
+                        <Button style={{opacity: 0.0, ...imageStyle}} onPress={handleOpenUrl} />
                     </>
                 }
                 {(datatype === QrDataType.image) &&
                     <>
                         <Image style={imageStyle} source={{ uri: qrdata.data }} onError={handleImageError} onLoad={handleImageLoad} />
-                        <Button style={{opacity: 0.1, ...imageStyle}} onPress={handleShowData} />
+                        <Button style={{opacity: 0.0, ...imageStyle}} onPress={handleShowData} />
                     </>
                 }
                 {(datatype === QrDataType.video) &&
