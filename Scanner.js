@@ -1,11 +1,12 @@
 /**
  * QR Code scan
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Image, StyleSheet } from 'react-native';
 import { Container, Content, Header, View, Button, Icon, Fab, Card, CardItem, Title, Body, Text, Toast, Spinner } from 'native-base';
 import * as Device from 'expo-device';
 import { BarCodeScanner } from 'expo-barcode-scanner';
+import { Video, AVPlaybackStatus } from 'expo-av';
 import { DeviceMotion } from 'expo-sensors';
 import * as WebBrowser from 'expo-web-browser';
 import Clipboard from 'expo-clipboard';
@@ -47,7 +48,8 @@ const homePageUrl = "https://nextjs.crazydreamproject.vercel.app/pictonqr";
 const QrDataType = {
     none: "null data",
     image: "Image URL",
-    url: "Web URL but not image",
+    video: "Video URL",
+    url: "Web URL but not image nor video",
     data: "RAW data"
 };
 
@@ -61,6 +63,8 @@ export const ScannerView = (props) => {
     const [qrdata, setQrData] = useState(initialQrData);
     const [datatype, setDataType] = useState(QrDataType.none);
     const [changed, setChanged] = useState(false);
+    const video = useRef(null);
+    const [play, setPlay] = useState({});
     const [favicon, setFavicon] = useState(false);
     const favUrl = qrdata.data.split('/')[0] + '//' + qrdata.data.split('/')[2] + '/favicon.ico';
 
@@ -126,16 +130,30 @@ export const ScannerView = (props) => {
         Toast.show({
             text: qrdata.data,
         });
-        // it was not image. treat as url if starts with http
+        // it was not image. try video next, if starts with http.
+        setDataType(qrdata.data.startsWith("http") ? QrDataType.video : QrDataType.data);
+    };
+
+    const handleImageLoad = () => {
+        Toast.show({
+            text: qrdata.data,
+        });
+    }
+
+    const handleVideoError = (ev) => {
+        Toast.show({
+            text: qrdata.data,
+        });
+        // it was not video. treat as url if starts with http
         setDataType(qrdata.data.startsWith("http") ? QrDataType.url : QrDataType.data);
         if (Device.osName === 'Android') {
             ; // humm, setting <Image> with favicon.ico source does not show, and is onLoad OK, onError not triggered...
         } else {
             axios.get(favUrl).then((results) => { setFavicon(true); }); // ios works fine
         }
-    };
+    }
 
-    const handleImageLoad = () => {
+    const handleVideoLoad = () => {
         Toast.show({
             text: qrdata.data,
         });
@@ -237,9 +255,27 @@ export const ScannerView = (props) => {
                         <Icon style={iconStyle} type="Ionicons" name="earth"></Icon>
                     </Button>}
                 {(datatype === QrDataType.url && favicon === true) &&
-                        <Image style={{ width: qrdata.width / 2, height: qrdata.height / 2 }} source={{ url: favUrl }} onError={urlError} onLoad={urlOK} />}
+                    <>
+                        <Image style={{ width: qrdata.width / 2, height: qrdata.height / 2, ...imageStyle }} source={{ url: favUrl }} onError={urlError} onLoad={urlOK} />
+                        <Button style={{opacity: 0.1, ...imageStyle}} onPress={handleOpenUrl} />
+                    </>
+                }
                 {(datatype === QrDataType.image) &&
-                    <Image style={imageStyle} source={{ uri: qrdata.data }} onError={handleImageError} onLoad={handleImageLoad} />}
+                    <>
+                        <Image style={imageStyle} source={{ uri: qrdata.data }} onError={handleImageError} onLoad={handleImageLoad} />
+                        <Button style={{opacity: 0.1, ...imageStyle}} onPress={handleShowData} />
+                    </>
+                }
+                {(datatype === QrDataType.video) &&
+                    <>
+                        <Video ref={video} style={imageStyle} source={{ uri: qrdata.data }} useNativeControls resizeMode="contain" isLooping
+                            onPlaybackStatusUpdate={status => setPlay(() => status)} onLoad={handleVideoLoad} onError={handleVideoError} />
+                        <View >
+                            <Button title={play.isPlaying ? 'Pause': 'Play'} 
+                                onPress={() => play.isPlaying ? video.current.pauseAsync() : video.current.playAsync() } />
+                        </View>
+                    </>
+                }
                 <Fab
                     active={true}
                     direction="up"
@@ -248,7 +284,7 @@ export const ScannerView = (props) => {
                     position="bottomRight"
                     onPress={handleReset}>
                     <Icon name="sync" />
-                    <Button style={{backgroundColor: themeColor}} onPress={handleOpenHomePage}>
+                    <Button style={{ backgroundColor: themeColor }} onPress={handleOpenHomePage}>
                         <Icon name="question" />
                     </Button>
                 </Fab>
