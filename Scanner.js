@@ -2,11 +2,11 @@
  * QR Code scan
  */
 import React, { useState, useEffect, useRef } from 'react';
-import { Image, StyleSheet } from 'react-native';
+import { Image, StyleSheet, useWindowDimensions } from 'react-native';
 import { Container, Content, Header, View, Button, Icon, Fab, Card, CardItem, Title, Body, Text, Toast, Spinner } from 'native-base';
 import * as Device from 'expo-device';
 import { BarCodeScanner } from 'expo-barcode-scanner';
-import { Video, AVPlaybackStatus } from 'expo-av';
+import { Video } from 'expo-av';
 import { DeviceMotion } from 'expo-sensors';
 import * as WebBrowser from 'expo-web-browser';
 import Clipboard from 'expo-clipboard';
@@ -66,6 +66,9 @@ export const ScannerView = (props) => {
     const video = useRef(null);
     const [play, setPlay] = useState({});
     const [favicon, setFavicon] = useState(false);
+    const [fullscreen, setFullscreen] = useState(false);
+    const [orientation, setOrientation] = useState(0);
+    const window = useWindowDimensions();
     const favUrl = qrdata.data.split('/')[0] + '//' + qrdata.data.split('/')[2] + '/favicon.ico';
 
     useEffect(() => {
@@ -76,6 +79,7 @@ export const ScannerView = (props) => {
         (async () => {
             const isAvailable = await DeviceMotion.isAvailableAsync();
             if (isAvailable) {
+                /** FIXME: disable rotation motion adjustment. calibration is not working well...
                 DeviceMotion.addListener((motionData) => {
                     // humm. using both motion and camera(barcodescanner) in android drops qrscan speed hopelessly...
                     if (Device.osName === 'Android') {
@@ -86,6 +90,7 @@ export const ScannerView = (props) => {
                         handleCalibrate();
                     }
                 });
+                */
             } else {
                 //console.log("DeviceMotion not available...");
             }
@@ -128,17 +133,19 @@ export const ScannerView = (props) => {
 
     const handleImageError = (ev) => {
         Toast.show({
-            text: qrdata.data,
+            text: `${qrdata.data}`,
         });
         // it was not image. try video next, if starts with http.
         setDataType(qrdata.data.startsWith("http") ? QrDataType.video : QrDataType.data);
     };
 
     const handleImageLoad = () => {
+        /*
         Toast.show({
-            text: qrdata.data,
+            text: `${qrdata.data}`,
         });
-    }
+        */
+    };
 
     const handleVideoError = (ev) => {
         Toast.show({
@@ -151,13 +158,13 @@ export const ScannerView = (props) => {
         } else {
             axios.get(favUrl).then((results) => { setFavicon(true); }); // ios works fine
         }
-    }
+    };
 
     const handleVideoLoad = () => {
         Toast.show({
             text: qrdata.data,
         });
-    }
+    };
 
     const handleShowData = () => {
         // copy data to clipboard
@@ -176,7 +183,30 @@ export const ScannerView = (props) => {
 
     const handleOpenHomePage = () => {
         WebBrowser.openBrowserAsync(homePageUrl);
-    }
+    };
+
+    const handleFullScreen = () => {
+        // just change width and height to device size
+        Toast.show({
+            text: `Full screen`
+        });
+        setFullscreen(true);
+    };
+
+    const handleFitQR = () => {
+        Toast.show({
+            text: `Fit to QR Code`
+        });
+        setFullscreen(false);
+    };
+
+    const handleOrientation = () => {
+        const rot = (orientation >= 270) ? 0 : orientation + 90;
+        setOrientation(rot);
+        Toast.show({
+            text: `Rotate ${rot} degree`
+        });
+    };
 
     const handleReset = () => {
         setScanned(false);
@@ -186,6 +216,8 @@ export const ScannerView = (props) => {
         setDataType(QrDataType.none);
         setChanged(false);
         setFavicon(false);
+        setFullscreen(false);
+        setOrientation(0);
     };
 
     /**
@@ -214,13 +246,14 @@ export const ScannerView = (props) => {
 
     const imageStyle = {
         position: 'absolute',
-        left: qrdata.x,
-        top: qrdata.y,
-        width: qrdata.width,
-        height: qrdata.height,
+        left: fullscreen ? 0 : qrdata.x,
+        top: fullscreen ? 0 : qrdata.y,
+        width: fullscreen ? window.width : qrdata.width,
+        height: fullscreen ? window.height : qrdata.height,
         backgroundColor: datatype === QrDataType.image ? 'transparent' : (favicon ? 'white' : themeColor),
         transform: [
-            { rotate: `${(motion.rotation.alpha - calibMotion.rotation.alpha) / 2}rad` },
+            { rotate: `${orientation}deg` },
+            //{ rotate: `${(motion.rotation.alpha - calibMotion.rotation.alpha) / 2}rad` },
             //            { rotateX: `${(motion.rotation.alpha - calibMotion.rotation.alpha) / 2}rad` },
             //            { rotateY: `${(motion.rotation.beta - calibMotion.rotation.beta) / 2}rad` },
             //            { rotateZ: `${(motion.rotation.gamma - calibMotion.rotation.gamma) / 2}rad` },
@@ -231,21 +264,29 @@ export const ScannerView = (props) => {
         color: 'white',
     };
 
-    const urlError = (ev) => {
+    const fabStyle = {
+        //opacity: fullscreen ? 1.0 : 1.0,
+        backgroundColor: themeColor,
+    };
+
+    const favError = (ev) => {
         //alert(typeof ev.nativeEvent);
     };
-    const urlOK = (ev) => {
+    const favOK = (ev) => {
         //alert("favUrl OK.");
     };
+    const isImageVideo = (datatype === QrDataType.video || datatype === QrDataType.image);
 
     return (
         <Container>
             <View style={styles.container}>
-                <BarCodeScanner
-                    onBarCodeScanned={handleBarCodeScanned}
-                    style={StyleSheet.absoluteFillObject}
-                    barCodeTypes={[BarCodeScanner.Constants.BarCodeType.qr]}
-                />
+                {//(!fullscreen) &&
+                    <BarCodeScanner
+                        onBarCodeScanned={handleBarCodeScanned}
+                        style={StyleSheet.absoluteFillObject}
+                        barCodeTypes={[BarCodeScanner.Constants.BarCodeType.qr]}
+                    />
+                }
                 {(datatype === QrDataType.data) &&
                     <Button primary iconLeft style={{ opacity: 1.0, ...imageStyle }} onPress={handleShowData} >
                         <Icon style={iconStyle} type="Ionicons" name="information-circle"></Icon>
@@ -256,38 +297,57 @@ export const ScannerView = (props) => {
                     </Button>}
                 {(datatype === QrDataType.url && favicon === true) &&
                     <>
-                        <Image style={{ width: qrdata.width / 2, height: qrdata.height / 2, ...imageStyle }} source={{ url: favUrl }} onError={urlError} onLoad={urlOK} />
-                        <Button style={{opacity: 0.0, ...imageStyle}} onPress={handleOpenUrl} />
+                        <Image style={{ width: qrdata.width / 2, height: qrdata.height / 2, ...imageStyle }} source={{ url: favUrl }} onError={favError} onLoad={favOK} />
+                        <Button style={{ opacity: 0.0, ...imageStyle }} onPress={handleOpenUrl} />
                     </>
                 }
                 {(datatype === QrDataType.image) &&
                     <>
-                        <Image style={imageStyle} source={{ uri: qrdata.data }} onError={handleImageError} onLoad={handleImageLoad} />
-                        <Button style={{opacity: 0.0, ...imageStyle}} onPress={handleShowData} />
+                        <Image style={imageStyle} source={{ uri: qrdata.data }} resizeMode={fullscreen ? "contain" : "cover"} onError={handleImageError} onLoad={handleImageLoad} />
+                        <Button style={{ opacity: 0.0, ...imageStyle }} onPress={handleShowData} />
                     </>
                 }
                 {(datatype === QrDataType.video) &&
                     <>
-                        <Video ref={video} style={imageStyle} source={{ uri: qrdata.data }} useNativeControls resizeMode="contain" isLooping
+                        <Video ref={video} style={{backgroundColor: 'black', ...imageStyle}} source={{ uri: qrdata.data }} useNativeControls resizeMode="contain" isLooping
                             onPlaybackStatusUpdate={status => setPlay(() => status)} onLoad={handleVideoLoad} onError={handleVideoError} />
-                        <View >
-                            <Button title={play.isPlaying ? 'Pause': 'Play'} 
-                                onPress={() => play.isPlaying ? video.current.pauseAsync() : video.current.playAsync() } />
-                        </View>
+                        { /*
+                        <Button title={play.isPlaying ? 'Pause': 'Play'} style={{opacity: 0.0, ...imageStyle }}
+                            onPress={() => play.isPlaying ? video.current.pauseAsync() : video.current.playAsync() } />
+                        */ }
                     </>
                 }
-                <Fab
-                    active={true}
-                    direction="up"
-                    containerStyle={{}}
-                    style={{ backgroundColor: themeColor }}
-                    position="bottomRight"
-                    onPress={handleReset}>
-                    <Icon name="sync" />
-                    <Button style={{ backgroundColor: themeColor }} onPress={handleOpenHomePage}>
-                        <Icon name="question" />
-                    </Button>
-                </Fab>
+                {//(!fullscreen) &&
+                    <Fab
+                        active={true}
+                        direction="up"
+                        containerStyle={{}}
+                        style={fabStyle}
+                        position="bottomRight"
+                        onPress={() => { if (fullscreen) { handleFitQR() } else { handleReset() } }}>
+                        {(fullscreen) ? <Icon type="MaterialIcons" name="fullscreen-exit" /> : <Icon type="AntDesign" name="sync" />}
+                        {(!fullscreen) &&
+                            <Button style={fabStyle} onPress={handleOpenHomePage}>
+                                <Icon type="AntDesign" name="question" />
+                            </Button>
+                        }
+                        {(!fullscreen && scanned) &&
+                            <Button style={fabStyle} onPress={handleShowData}>
+                                <Icon type="Ionicons" name="copy-outline" />
+                            </Button>
+                        }
+                        {(!fullscreen && isImageVideo) &&
+                            <Button style={fabStyle} onPress={handleOrientation}>
+                                <Icon type="MaterialCommunityIcons" name="rotate-right-variant" />
+                            </Button>
+                        }
+                        {(!fullscreen && isImageVideo) &&
+                            <Button style={fabStyle} onPress={handleFullScreen}>
+                                <Icon type="MaterialIcons" name="fit-screen" />
+                            </Button>
+                        }
+                    </Fab>
+                }
             </View>
         </Container>
     );
